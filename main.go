@@ -19,23 +19,39 @@ func main() {
 		fmt.Println(err)
 	}
 
-	//TODO: replace with switch statement
-	fmt.Println(opt)
-	if opt.MainOperation == "profile" {
-		if opt.SubOperation == "add" {
+	//TODO: Replace with switch statement
+
+	switch opt.MainOperation {
+	case "profile":
+		switch opt.SubOperation {
+		case "add":
 			if len(opt.Parameters) < 2 {
 				fmt.Printf("Wrong parameter count! %d provided, 2 or more required!\n", len(opt.Parameters))
-				return
+				break // or return?
 			}
-			utils.AddInstance(&data, opt.Parameters[0], opt.Parameters[1])
-		}
 
-		if opt.SubOperation == "remove" {
+			err := utils.CreateInstance(&data, opt.Parameters[0], opt.Parameters[1])
+			if err != nil {
+				fmt.Println(err)
+				break // or return?
+			}
+		case "remove":
 			if len(opt.Parameters) != 1 {
 				fmt.Printf("Wrong parameter count! %d provided, 1 required!\n", len(opt.Parameters))
-				return
+				break // or return?
 			}
 			utils.RemoveInstance(&data, opt.Parameters[0])
+		}
+	case "play":
+		if len(opt.Parameters) != 1 {
+			fmt.Printf("Wrong parameter count! %d provided, 1 required!\n", len(opt.Parameters))
+			break // or return?
+		}
+		inst := utils.FetchInstance(&data, opt.Parameters[0])
+		err := utils.LaunchInstance(*inst)
+		if err != nil {
+			fmt.Println(err)
+			break // or return?
 		}
 	}
 

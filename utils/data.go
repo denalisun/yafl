@@ -56,14 +56,20 @@ func GetData() ([]YAFLInstance, error) {
 	return data, nil
 }
 
-func AddInstance(data *[]YAFLInstance, name string, buildPath string) {
+func CreateInstance(data *[]YAFLInstance, name string, buildPath string) error {
 	newInstance := YAFLInstance{
 		Name:           name,
 		Mods:           []string{},
 		BuildPath:      buildPath,
 		AdditionalArgs: "",
 	}
+	for _, v := range *data {
+		if v.Name == name {
+			return fmt.Errorf("Error: Instance with the name \"%s\" already exists!", name)
+		}
+	}
 	*data = append(*data, newInstance)
+	return nil
 }
 
 func RemoveInstance(data *[]YAFLInstance, name string) {
@@ -74,6 +80,15 @@ func RemoveInstance(data *[]YAFLInstance, name string) {
 			break
 		}
 	}
+}
+
+func FetchInstance(data *[]YAFLInstance, name string) *YAFLInstance {
+	for _, v := range *data {
+		if v.Name == name {
+			return &v
+		}
+	}
+	return nil
 }
 
 func SaveData(data *[]YAFLInstance) error {

@@ -5,15 +5,43 @@ import (
 	"unsafe"
 )
 
+type dword uint32
+type long int32
+type cBOOL int
+
+type THREADENTRY32 struct {
+	dwSize             dword
+	cntUsage           dword
+	th32ThreadID       dword
+	th32OwnerProcessID dword
+	tpBasePri          long
+	tpDeltaPri         long
+	dwFlags            dword
+}
+
 var (
-	PROCESS_CREATE_THREAD     = uint32(0x0002)
-	PROCESS_QUERY_INFORMATION = uint32(0x0400)
-	PROCESS_VM_OPERATION      = uint32(0x0008)
-	PROCESS_VM_WRITE          = uint32(0x0020)
-	PROCESS_VM_READ           = uint32(0x0010)
-	MEM_COMMIT                = uint32(0x1000)
-	MEM_RESERVE               = uint32(0x2000)
-	PAGE_READWRITE            = uint32(0x04)
+	PROCESS_CREATE_THREAD            = uint32(0x0002)
+	PROCESS_QUERY_INFORMATION        = uint32(0x0400)
+	PROCESS_VM_OPERATION             = uint32(0x0008)
+	PROCESS_VM_WRITE                 = uint32(0x0020)
+	PROCESS_VM_READ                  = uint32(0x0010)
+	PROCESS_ALL_ACCESS               = uint32(0x000F0000) | uint32(0x00100000) | uint32(0xFFFF)
+	MEM_COMMIT                       = uint32(0x1000)
+	MEM_RESERVE                      = uint32(0x2000)
+	PAGE_READWRITE                   = uint32(0x04)
+	THREAD_SUSPEND_RESUME            = uintptr(0x0002)
+	THREAD_TERMINATE                 = uintptr(0x0001)
+	THREAD_QUERY_INFORMATION         = uintptr(0x0040)
+	THREAD_QUERY_LIMITED_INFORMATION = uintptr(0x0800)
+	THREAD_SET_CONTEXT               = uintptr(0x0010)
+	THREAD_SET_INFORMATION           = uintptr(0x0020)
+	THREAD_SET_LIMITED_INFORMATION   = uintptr(0x0400)
+	THREAD_SET_THREAD_TOKEN          = uintptr(0x0080)
+	THREAD_GET_CONTEXT               = uintptr(0x0008)
+	THREAD_IMPERSONATE               = uintptr(0x0100)
+	THREAD_DIRECT_IMPERSONATION      = uintptr(0x0200)
+	THREAD_ALL_ACCESS                = uintptr(0x1F03FF)
+	TH32CS_SNAPTHREAD                = uint32(0x00000004)
 )
 
 var (
@@ -27,6 +55,12 @@ var (
 	procResumeThread       = kernel32.NewProc("ResumeThread")
 	procOpenThread         = kernel32.NewProc("OpenThread")
 	procAllocConsole       = kernel32.NewProc("AllocConsole")
+	procThread32First      = kernel32.NewProc("Thread32First")
+	procThread32Next       = kernel32.NewProc("Thread32Next")
+
+	ntdll = syscall.NewLazyDLL("ntdll.dll")
+
+	procNtSuspendProcess = ntdll.NewProc("NtSuspendProcess")
 )
 
 // OpenProcess
@@ -90,7 +124,7 @@ func GetModuleHandle(lpModuleName string) (syscall.Handle, error) {
 
 func SuspendThread(hThread syscall.Handle) (uint32, error) {
 	ret, _, err := procSuspendThread.Call(uintptr(hThread))
-	if ret == 0 {
+	if int(ret) == -1 {
 		return 0, err
 	}
 	return uint32(ret), nil
@@ -119,6 +153,35 @@ func OpenThread(dwDesiredAccess uint32, bInheritHandle bool, dwThreadId int) (sy
 func AllocConsole() error {
 	ret, _, err := procAllocConsole.Call()
 	if ret == 0 {
+		return err
+	}
+	return nil
+}
+
+func Thread32First(hSnapshot syscall.Handle, lpThreadEntry uintptr) (cBOOL, error) {
+	ret, _, err := procThread32First.Call(uintptr(hSnapshot), lpThreadEntry)
+	if ret == 0 {
+		return cBOOL(ret), err
+	}
+	return cBOOL(ret), nil
+}
+
+func Thread32Next(hSnapshot syscall.Handle, lpThreadEntry uintptr) (cBOOL, error) {
+	ret, _, err := procThread32Next.Call(uintptr(hSnapshot), lpThreadEntry)
+	if ret == 0 {
+		return cBOOL(ret), err
+	}
+	return cBOOL(ret), nil
+}
+
+// not really Ntsuspendprocess but its better formatted for Go
+func NtSuspendProcess(pID dword) error {
+	processHandle, err := syscall.OpenProcess(PROCESS_ALL_ACCESS, false, uint32(pID))
+	if err != nil {
+		return err
+	}
+	procNtSuspendProcess.Call(uintptr(processHandle))
+	if err := syscall.CloseHandle(processHandle); err != nil {
 		return err
 	}
 	return nil

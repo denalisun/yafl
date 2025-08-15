@@ -10,6 +10,10 @@ YAFL is an intuitive launcher with mod support in mind
 - Downloading versions (?)
 
 ## Arguments
+- help
+    - *all*
+    - **Command**
+
 - play
     - **Profile Name**
 
