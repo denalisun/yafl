@@ -34,18 +34,18 @@ var (
 )
 
 var (
-	kernel32 = syscall.NewLazyDLL("kernel32.dll")
+	Kernel32 = syscall.NewLazyDLL("kernel32.dll")
 
-	procVirtualAllocEx     = kernel32.NewProc("VirtualAllocEx")
-	procWriteProcessMemory = kernel32.NewProc("WriteProcessMemory")
-	procCreateRemoteThread = kernel32.NewProc("CreateRemoteThread")
-	procGetModuleHandle    = kernel32.NewProc("GetModuleHandle")
-	procSuspendThread      = kernel32.NewProc("SuspendThread")
-	procResumeThread       = kernel32.NewProc("ResumeThread")
-	procOpenThread         = kernel32.NewProc("OpenThread")
-	procAllocConsole       = kernel32.NewProc("AllocConsole")
-	procThread32First      = kernel32.NewProc("Thread32First")
-	procThread32Next       = kernel32.NewProc("Thread32Next")
+	procVirtualAllocEx     = Kernel32.NewProc("VirtualAllocEx")
+	procWriteProcessMemory = Kernel32.NewProc("WriteProcessMemory")
+	procCreateRemoteThread = Kernel32.NewProc("CreateRemoteThread")
+	procGetModuleHandle    = Kernel32.NewProc("GetModuleHandle")
+	procSuspendThread      = Kernel32.NewProc("SuspendThread")
+	procResumeThread       = Kernel32.NewProc("ResumeThread")
+	procOpenThread         = Kernel32.NewProc("OpenThread")
+	procAllocConsole       = Kernel32.NewProc("AllocConsole")
+	procThread32First      = Kernel32.NewProc("Thread32First")
+	procThread32Next       = Kernel32.NewProc("Thread32Next")
 
 	ntdll = syscall.NewLazyDLL("ntdll.dll")
 

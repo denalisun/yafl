@@ -40,22 +40,31 @@ func LaunchInstance(instance utils.YAFLInstance) (*os.Process, *os.Process, *os.
 
 	launcherProcess, err := os.StartProcess(launcherPath, append([]string{launcherPath}, launchArgs...), &attr)
 	if err != nil {
+		launcherProcess.Kill()
 		return nil, nil, nil, err
 	}
 	if err := utils.NtSuspendProcess(utils.DWORD(launcherProcess.Pid)); err != nil {
+		launcherProcess.Kill()
 		return nil, nil, nil, err
 	}
 
 	eacProcess, err := os.StartProcess(eacShippingPath, append([]string{eacShippingPath}, launchArgs...), &attr)
 	if err != nil {
+		launcherProcess.Kill()
+		eacProcess.Kill()
 		return nil, nil, nil, err
 	}
 	if err := utils.NtSuspendProcess(utils.DWORD(eacProcess.Pid)); err != nil {
+		launcherProcess.Kill()
+		eacProcess.Kill()
 		return nil, nil, nil, err
 	}
 
 	shippingProcess, err := os.StartProcess(shippingPath, append([]string{shippingPath}, launchArgs...), &attr)
 	if err != nil {
+		shippingProcess.Kill()
+		launcherProcess.Kill()
+		eacProcess.Kill()
 		return nil, nil, nil, err
 	}
 

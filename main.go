@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/denalisun/yafl/launcher"
 	"github.com/denalisun/yafl/utils"
 )
 
@@ -45,7 +46,7 @@ func main() {
 		case "list":
 			allInstancesFormat := []string{}
 			for _, v := range data {
-				allInstancesFormat = append(allInstancesFormat, fmt.Sprintf("	- %s (%s)", v.Name, v.BuildPath))
+				allInstancesFormat = append(allInstancesFormat, fmt.Sprintf("\t- %s (%s)", v.Name, v.BuildPath))
 			}
 			fmt.Printf("All instances (%d):\n%s", len(allInstancesFormat), strings.Join(allInstancesFormat, "\n"))
 		}
@@ -55,15 +56,34 @@ func main() {
 			break
 		}
 		inst := utils.FetchInstance(&data, opt.Parameters[0])
-		shipping, launcher, eac, err := utils.LaunchInstance(*inst)
+		shippingProcess, launcherProcess, eacProcess, err := launcher.LaunchInstance(*inst)
 		if err != nil {
 			fmt.Println(err)
-			break
+			return
 		}
 
-		shipping.Wait()
-		launcher.Kill()
-		eac.Kill()
+		allMods, err := launcher.CollectMods(inst.ModsPath)
+		if err != nil {
+			shippingProcess.Kill()
+			launcherProcess.Kill()
+			eacProcess.Kill()
+			fmt.Println(err)
+			return
+		}
+		fmt.Println(allMods)
+
+		err = launcher.ApplyMods(&allMods, utils.DWORD(shippingProcess.Pid), inst)
+		if err != nil {
+			shippingProcess.Kill()
+			launcherProcess.Kill()
+			eacProcess.Kill()
+			fmt.Println(err)
+			return
+		}
+
+		shippingProcess.Wait()
+		launcherProcess.Kill()
+		eacProcess.Kill()
 	}
 
 	if err = utils.SaveData(&data); err != nil {
