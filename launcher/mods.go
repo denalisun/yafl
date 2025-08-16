@@ -2,6 +2,8 @@ package launcher
 
 import (
 	"fmt"
+	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,6 +26,29 @@ type Mod struct {
 	Type int
 }
 
+func copyFileContents(src, dst string) (err error) {
+	in, err := os.Open(src)
+	if err != nil {
+		return
+	}
+	defer in.Close()
+	out, err := os.Create(dst)
+	if err != nil {
+		return
+	}
+	defer func() {
+		cerr := out.Close()
+		if err == nil {
+			err = cerr
+		}
+	}()
+	if _, err = io.Copy(out, in); err != nil {
+		return
+	}
+	err = out.Sync()
+	return
+}
+
 func (m *Mod) apply(pID utils.DWORD, inst *utils.YAFLInstance) error {
 	fmt.Printf("Applying %s...\n", m.Name)
 	switch m.Type {
@@ -33,7 +58,19 @@ func (m *Mod) apply(pID utils.DWORD, inst *utils.YAFLInstance) error {
 			return err
 		}
 	case MOD_PAKFILE:
-		// Add pak and find smallest sig
+		contentPath := filepath.Join(inst.BuildPath, "FortniteGame\\Content\\Paks")
+		smallestSig, err := findSmallestSig(inst.BuildPath)
+		if err != nil {
+			return err
+		}
+		err = copyFileContents(m.Path, filepath.Join(contentPath, m.Name))
+		if err != nil {
+			return err
+		}
+		err = copyFileContents(smallestSig, filepath.Join(contentPath, strings.Split(filepath.Base(m.Path), ".")[0]+".sig"))
+		if err != nil {
+			return err
+		}
 	case MOD_PATCHFILE:
 		// patch paks and make backups
 	}
@@ -41,6 +78,35 @@ func (m *Mod) apply(pID utils.DWORD, inst *utils.YAFLInstance) error {
 	fmt.Printf("Successfully applied %s!\n", m.Name)
 
 	return nil
+}
+
+func findSmallestSig(path string) (string, error) {
+	contentPath := filepath.Join(path, "FortniteGame\\Content\\Paks")
+	files, err := os.ReadDir(contentPath)
+	if err != nil {
+		return "", err
+	}
+
+	var sigPath string
+	var sigSize int64 = math.MaxInt64
+	for _, f := range files {
+		splitName := strings.Split(f.Name(), ".")
+		if splitName[len(splitName)-1] == "sig" {
+			sigPathTemp := filepath.Join(contentPath, f.Name())
+			fs, err := os.Stat(sigPathTemp)
+			if err != nil {
+				return "", err
+			}
+
+			size := fs.Size()
+			if size < sigSize {
+				sigPath = sigPathTemp
+				sigSize = size
+			}
+		}
+	}
+
+	return sigPath, nil
 }
 
 func getModType(name string) int {
@@ -113,12 +179,15 @@ func CollectMods(path string) ([]Mod, error) {
 	return mods, nil
 }
 
-func ApplyMods(mods *[]Mod, fortnitePID utils.DWORD, inst *utils.YAFLInstance) error {
+// ApplyMods applies all mods of a specified type.
+func ApplyMods(mods *[]Mod, fortnitePID utils.DWORD, inst *utils.YAFLInstance, modType int) error {
 	for _, m := range *mods {
-		err := m.apply(fortnitePID, inst)
-		if err != nil {
-			fmt.Printf("Failed to apply mod: %s\n", err)
-			continue
+		if m.Type == modType {
+			err := m.apply(fortnitePID, inst)
+			if err != nil {
+				fmt.Printf("Failed to apply mod: %s\n", err)
+				continue
+			}
 		}
 	}
 

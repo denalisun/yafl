@@ -56,23 +56,32 @@ func main() {
 			break
 		}
 		inst := utils.FetchInstance(&data, opt.Parameters[0])
+
+		allMods, err := launcher.CollectMods(inst.ModsPath)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		fmt.Println(allMods)
+
+		err = launcher.ApplyMods(&allMods, 0, inst, launcher.MOD_PAKFILE)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		err = launcher.ApplyMods(&allMods, 0, inst, launcher.MOD_PATCHFILE)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
 		shippingProcess, launcherProcess, eacProcess, err := launcher.LaunchInstance(*inst)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
 
-		allMods, err := launcher.CollectMods(inst.ModsPath)
-		if err != nil {
-			shippingProcess.Kill()
-			launcherProcess.Kill()
-			eacProcess.Kill()
-			fmt.Println(err)
-			return
-		}
-		fmt.Println(allMods)
-
-		err = launcher.ApplyMods(&allMods, utils.DWORD(shippingProcess.Pid), inst)
+		err = launcher.ApplyMods(&allMods, utils.DWORD(shippingProcess.Pid), inst, launcher.MOD_DLLFILE)
 		if err != nil {
 			shippingProcess.Kill()
 			launcherProcess.Kill()
