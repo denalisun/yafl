@@ -7,11 +7,12 @@ import (
 	"io/fs"
 	"os"
 	"path"
+	"path/filepath"
 )
 
 type YAFLInstance struct {
 	Name           string
-	Mods           []string
+	ModsPath       string
 	BuildPath      string
 	AdditionalArgs string
 }
@@ -23,7 +24,7 @@ func initData() ([]YAFLInstance, error) {
 		fmt.Printf("Could not marshal JSON: %s\n", err)
 		return nil, err
 	}
-	yaflPath := path.Join(os.Getenv("LOCALAPPDATA"), ".yafl")
+	yaflPath := filepath.Join(os.Getenv("LOCALAPPDATA"), ".yafl")
 	if _, err = os.Stat(yaflPath); errors.Is(err, fs.ErrNotExist) {
 		os.Mkdir(yaflPath, 0666)
 	}
@@ -36,8 +37,8 @@ func initData() ([]YAFLInstance, error) {
 
 func GetData() ([]YAFLInstance, error) {
 	var data []YAFLInstance
-	yaflPath := path.Join(os.Getenv("LOCALAPPDATA"), ".yafl")
-	dataPath := path.Join(yaflPath, "data.json")
+	yaflPath := filepath.Join(os.Getenv("LOCALAPPDATA"), ".yafl")
+	dataPath := filepath.Join(yaflPath, "data.json")
 	if _, err := os.Stat(dataPath); errors.Is(err, fs.ErrNotExist) {
 		data, err = initData()
 		if err != nil {
@@ -59,13 +60,13 @@ func GetData() ([]YAFLInstance, error) {
 func CreateInstance(data *[]YAFLInstance, name string, buildPath string) error {
 	newInstance := YAFLInstance{
 		Name:           name,
-		Mods:           []string{},
+		ModsPath:       filepath.Join(buildPath, "Mods"),
 		BuildPath:      buildPath,
 		AdditionalArgs: "",
 	}
 	for _, v := range *data {
 		if v.Name == name {
-			return fmt.Errorf("Error: Instance with the name \"%s\" already exists!", name)
+			return fmt.Errorf("instance with the name \"%s\" already exists", name)
 		}
 	}
 	*data = append(*data, newInstance)
@@ -96,11 +97,11 @@ func SaveData(data *[]YAFLInstance) error {
 	if err != nil {
 		return err
 	}
-	yaflPath := path.Join(os.Getenv("LOCALAPPDATA"), ".yafl")
+	yaflPath := filepath.Join(os.Getenv("LOCALAPPDATA"), ".yafl")
 	if _, err = os.Stat(yaflPath); errors.Is(err, fs.ErrNotExist) {
 		os.Mkdir(yaflPath, 0666)
 	}
-	if err = os.WriteFile(path.Join(yaflPath, "data.json"), jsonData, 0666); err != nil {
+	if err = os.WriteFile(filepath.Join(yaflPath, "data.json"), jsonData, 0666); err != nil {
 		return err
 	}
 	return nil

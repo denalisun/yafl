@@ -5,19 +5,8 @@ import (
 	"unsafe"
 )
 
-type dword uint32
-type long int32
-type cBOOL int
-
-type THREADENTRY32 struct {
-	dwSize             dword
-	cntUsage           dword
-	th32ThreadID       dword
-	th32OwnerProcessID dword
-	tpBasePri          long
-	tpDeltaPri         long
-	dwFlags            dword
-}
+type DWORD uint32
+type CBOOL int
 
 var (
 	PROCESS_CREATE_THREAD            = uint32(0x0002)
@@ -158,24 +147,24 @@ func AllocConsole() error {
 	return nil
 }
 
-func Thread32First(hSnapshot syscall.Handle, lpThreadEntry uintptr) (cBOOL, error) {
+func Thread32First(hSnapshot syscall.Handle, lpThreadEntry uintptr) (CBOOL, error) {
 	ret, _, err := procThread32First.Call(uintptr(hSnapshot), lpThreadEntry)
 	if ret == 0 {
-		return cBOOL(ret), err
+		return CBOOL(ret), err
 	}
-	return cBOOL(ret), nil
+	return CBOOL(ret), nil
 }
 
-func Thread32Next(hSnapshot syscall.Handle, lpThreadEntry uintptr) (cBOOL, error) {
+func Thread32Next(hSnapshot syscall.Handle, lpThreadEntry uintptr) (CBOOL, error) {
 	ret, _, err := procThread32Next.Call(uintptr(hSnapshot), lpThreadEntry)
 	if ret == 0 {
-		return cBOOL(ret), err
+		return CBOOL(ret), err
 	}
-	return cBOOL(ret), nil
+	return CBOOL(ret), nil
 }
 
 // not really Ntsuspendprocess but its better formatted for Go
-func NtSuspendProcess(pID dword) error {
+func NtSuspendProcess(pID DWORD) error {
 	processHandle, err := syscall.OpenProcess(PROCESS_ALL_ACCESS, false, uint32(pID))
 	if err != nil {
 		return err
