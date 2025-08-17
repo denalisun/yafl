@@ -1,6 +1,7 @@
 package launcher
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"math"
@@ -26,7 +27,7 @@ type Mod struct {
 	Type int
 }
 
-func copyFileContents(src, dst string) (err error) {
+func CopyFileContents(src, dst string) (err error) {
 	in, err := os.Open(src)
 	if err != nil {
 		return
@@ -49,35 +50,78 @@ func copyFileContents(src, dst string) (err error) {
 	return
 }
 
-func (m *Mod) apply(pID utils.DWORD, inst *utils.YAFLInstance) error {
-	fmt.Printf("Applying %s...\n", m.Name)
-	switch m.Type {
-	case MOD_DLLFILE:
-		err := injectDll(m.Path, pID)
-		if err != nil {
-			return err
+func ApplyPaks(mods *[]Mod, inst *utils.YAFLInstance) error {
+	for _, m := range *mods {
+		if m.Type == MOD_PAKFILE {
+			contentPath := filepath.Join(inst.BuildPath, "FortniteGame\\Content\\Paks")
+			smallestSig, err := findSmallestSig(inst.BuildPath)
+			if err != nil {
+				return err
+			}
+			err = CopyFileContents(m.Path, filepath.Join(contentPath, m.Name))
+			if err != nil {
+				return err
+			}
+			err = CopyFileContents(smallestSig, filepath.Join(contentPath, strings.Split(filepath.Base(m.Path), ".")[0]+".sig"))
+			if err != nil {
+				return err
+			}
 		}
-	case MOD_PAKFILE:
-		contentPath := filepath.Join(inst.BuildPath, "FortniteGame\\Content\\Paks")
-		smallestSig, err := findSmallestSig(inst.BuildPath)
-		if err != nil {
-			return err
-		}
-		err = copyFileContents(m.Path, filepath.Join(contentPath, m.Name))
-		if err != nil {
-			return err
-		}
-		err = copyFileContents(smallestSig, filepath.Join(contentPath, strings.Split(filepath.Base(m.Path), ".")[0]+".sig"))
-		if err != nil {
-			return err
-		}
-	case MOD_PATCHFILE:
-		// patch paks and make backups
 	}
-
-	fmt.Printf("Successfully applied %s!\n", m.Name)
-
 	return nil
+}
+
+func ApplyDLLs(mods *[]Mod, inst *utils.YAFLInstance, fortnitePID utils.DWORD) error {
+	for _, m := range *mods {
+		if m.Type == MOD_DLLFILE {
+			err := injectDll(m.Path, fortnitePID)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func ApplyPatches(mods *[]Mod, inst *utils.YAFLInstance) ([]string, error) {
+	moddedFiles := []string{}
+	for _, m := range *mods {
+		if m.Type == MOD_PATCHFILE {
+			f, err := os.ReadFile(m.Path)
+			if err != nil {
+				return moddedFiles, err
+			}
+
+			if !bytes.Equal(f[:2], []byte{0xAE, 'p'}) {
+				return moddedFiles, fmt.Errorf("patch \"%s\" doesn't have a valid magic", m.Name)
+			}
+
+			pBytes := f[2:]
+			separatedBytes := map[int][]byte{}
+			i := 0
+			for _, byt := range pBytes {
+				if byt == 0xFF {
+					i++
+				} else {
+					if separatedBytes[i] == nil {
+						separatedBytes[i] = []byte{}
+					}
+					separatedBytes[i] = append(separatedBytes[i], byt)
+				}
+			}
+
+			for _, bytes := range separatedBytes {
+				instruction := bytes[0]
+				if instruction == 0x05 {
+					continue
+				}
+				size := bytes[1]
+				parameter := bytes[2:]
+				fmt.Println(instruction, size, parameter)
+			}
+		}
+	}
+	return moddedFiles, nil
 }
 
 func findSmallestSig(path string) (string, error) {
@@ -179,15 +223,17 @@ func CollectMods(path string) ([]Mod, error) {
 	return mods, nil
 }
 
-// ApplyMods applies all mods of a specified type.
-func ApplyMods(mods *[]Mod, fortnitePID utils.DWORD, inst *utils.YAFLInstance, modType int) error {
-	for _, m := range *mods {
-		if m.Type == modType {
-			err := m.apply(fortnitePID, inst)
-			if err != nil {
-				fmt.Printf("Failed to apply mod: %s\n", err)
-				continue
-			}
+func RemoveMods(inst utils.YAFLInstance) error {
+	contentPath := filepath.Join(inst.BuildPath, "FortniteGame\\Content\\Paks")
+	files, err := os.ReadDir(contentPath)
+	if err != nil {
+		return err
+	}
+	for _, f := range files {
+		splitName := strings.Split(f.Name(), ".")
+		if splitName[len(splitName)-1] == ".bak" {
+			realPak := strings.Join(splitName[:len(splitName)-1], ".")
+			fmt.Println(realPak)
 		}
 	}
 

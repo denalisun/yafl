@@ -17,12 +17,20 @@ type YAFLInstance struct {
 	AdditionalArgs string
 }
 
-func initData() ([]YAFLInstance, error) {
-	data := []YAFLInstance{}
+type YAFLData struct {
+	Instances        []YAFLInstance
+	SelectedInstance string
+}
+
+func initData() (YAFLData, error) {
+	data := YAFLData{
+		Instances:        []YAFLInstance{},
+		SelectedInstance: "",
+	}
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		fmt.Printf("Could not marshal JSON: %s\n", err)
-		return nil, err
+		return YAFLData{}, err
 	}
 	yaflPath := filepath.Join(os.Getenv("LOCALAPPDATA"), ".yafl")
 	if _, err = os.Stat(yaflPath); errors.Is(err, fs.ErrNotExist) {
@@ -30,28 +38,28 @@ func initData() ([]YAFLInstance, error) {
 	}
 	if err = os.WriteFile(path.Join(yaflPath, "data.json"), jsonData, 0666); err != nil {
 		fmt.Println(err)
-		return nil, err
+		return YAFLData{}, err
 	}
 	return data, nil
 }
 
-func GetData() ([]YAFLInstance, error) {
-	var data []YAFLInstance
+func GetData() (YAFLData, error) {
+	var data YAFLData
 	yaflPath := filepath.Join(os.Getenv("LOCALAPPDATA"), ".yafl")
 	dataPath := filepath.Join(yaflPath, "data.json")
 	if _, err := os.Stat(dataPath); errors.Is(err, fs.ErrNotExist) {
 		data, err = initData()
 		if err != nil {
-			return nil, err
+			return YAFLData{}, err
 		}
 	} else if err == nil {
 		bData, err := os.ReadFile(dataPath)
 		if err != nil {
-			return nil, err
+			return YAFLData{}, err
 		}
 		err = json.Unmarshal(bData, &data)
 		if err != nil {
-			return nil, err
+			return YAFLData{}, err
 		}
 	}
 	return data, nil
@@ -92,7 +100,7 @@ func FetchInstance(data *[]YAFLInstance, name string) *YAFLInstance {
 	return nil
 }
 
-func SaveData(data *[]YAFLInstance) error {
+func SaveData(data *YAFLData) error {
 	jsonData, err := json.Marshal(*data)
 	if err != nil {
 		return err
