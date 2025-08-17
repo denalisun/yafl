@@ -105,6 +105,12 @@ func main() {
 		shippingProcess.Wait()
 		launcherProcess.Kill()
 		eacProcess.Kill()
+
+		err = launcher.RemovePaks(&allMods, inst)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
 	case "mods":
 		switch opt.SubOperation {
 		case "add":

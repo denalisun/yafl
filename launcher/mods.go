@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/fs"
 	"math"
 	"os"
 	"path/filepath"
@@ -66,6 +67,26 @@ func ApplyPaks(mods *[]Mod, inst *utils.YAFLInstance) error {
 			if err != nil {
 				return err
 			}
+		}
+	}
+	return nil
+}
+
+func RemovePaks(mods *[]Mod, inst *utils.YAFLInstance) error {
+	for _, m := range *mods {
+		if m.Type == MOD_PAKFILE {
+			contentPath := filepath.Join(inst.BuildPath, "FortniteGame\\Content\\Paks")
+			toRemove := filepath.Join(contentPath, m.Name)
+			if _, err := os.Stat(toRemove); err == fs.ErrNotExist {
+				return err
+			}
+			toRemoveSig := filepath.Join(contentPath, strings.Split(m.Name, ".")[0]+".sig")
+			if _, err := os.Stat(toRemoveSig); err == fs.ErrNotExist {
+				return err
+			}
+
+			os.Remove(toRemove)
+			os.Remove(toRemoveSig)
 		}
 	}
 	return nil
