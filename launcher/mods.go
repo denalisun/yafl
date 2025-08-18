@@ -84,7 +84,6 @@ func RemovePaks(mods *[]Mod, inst *utils.YAFLInstance) error {
 			if _, err := os.Stat(toRemoveSig); err == fs.ErrNotExist {
 				return err
 			}
-
 			os.Remove(toRemove)
 			os.Remove(toRemoveSig)
 		}

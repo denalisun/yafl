@@ -22,7 +22,7 @@ func ProcessArgs(args []string) (ArgOptions, error) {
 			opts.Parameters = args[3:]
 		}
 	} else {
-		return ArgOptions{}, fmt.Errorf("Arguments must be at least a length of 2!")
+		return ArgOptions{}, fmt.Errorf("arguments must be at least a length of 2")
 	}
 
 	return opts, nil
