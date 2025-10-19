@@ -30,7 +30,8 @@ int main(int argc, char **argv) {
         }
     }
     
-    char *serverPath = "./assets/Reboot.dll";
+    char serverPath[MAX_PATH];
+    GetFullPathNameA("./assets/Reboot.dll", MAX_PATH, serverPath, NULL);
     if (bIsServer && !file_exists(serverPath)) {
         printf("Error: Reboot DLL not found!");
         return 1;
@@ -64,13 +65,6 @@ int main(int argc, char **argv) {
     CloseHandle(gameHandle);
     CloseHandle(launcherHandle);
     CloseHandle(acHandle);
-
-    free(fortniteLauncherPath);
-    free(fortniteClientPath);
-    free(fortniteEACPath);
-    free(fortniteBinariesPath);
-    free(playPath);
-    free(allTweaks);
 
     return 0;
 }
