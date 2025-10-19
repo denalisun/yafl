@@ -1,7 +1,4 @@
-use std::path::Path;
-
 use crate::utils::path_exists;
-
 mod utils;
 
 fn print_usage() {
