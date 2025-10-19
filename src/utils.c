@@ -76,3 +76,32 @@ BOOL file_exists(LPCTSTR szPath)
   return (dwAttrib != INVALID_FILE_ATTRIBUTES && 
          !(dwAttrib & FILE_ATTRIBUTE_DIRECTORY));
 }
+
+// This is highkey taken from s4yr3x on GitHub
+int inject_dll(HANDLE hInjectionProcess, char* cDLLPath) {
+    if (hInjectionProcess == NULL) {
+        return 1;
+    }
+    if (cDLLPath == NULL) {
+        return 1;
+    }
+
+    size_t pathSize = (strlen(cDLLPath) + 1) * sizeof(char);
+    void* loc = VirtualAllocEx(hInjectionProcess, NULL, pathSize, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
+    if (!WriteProcessMemory(hInjectionProcess, loc, cDLLPath, pathSize, 0)) {
+        return 1;
+    }
+
+    LPVOID loadLibraryAddr = (LPVOID)GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryA");
+    if (loadLibraryAddr == NULL) {
+        return 1;
+    }
+
+    HANDLE hThread = CreateRemoteThread(hInjectionProcess, NULL, 0, (LPTHREAD_START_ROUTINE)loadLibraryAddr, loc, 0, NULL);
+    if (hThread == NULL) {
+        VirtualFreeEx(hInjectionProcess, loc, 0, MEM_RELEASE);
+        return 1;
+    }
+
+    return 0;
+}

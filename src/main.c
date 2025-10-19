@@ -7,7 +7,8 @@
 
 int main(int argc, char **argv) {
     // First I wanna check for cobalt
-    char *cobaltPath = "./assets/Cobalt.dll";
+    char cobaltPath[MAX_PATH];
+    GetFullPathNameA("./assets/Cobalt.dll", MAX_PATH, cobaltPath, NULL);
     if (!file_exists(cobaltPath)) {
         printf("Error: Cobalt DLL not found!");
         return 1;
@@ -49,9 +50,11 @@ int main(int argc, char **argv) {
     NtSuspendProcess(acHandle);
     HANDLE gameHandle = start_process(fortniteClientPath, launchArgs, fortniteBinariesPath);
 
-    printf("Launched Fortnite...\n");
+    printf("Launched Fortnite!\nDO NOT CLOSE THIS, YOU MAY GET ERRORS!\n");
 
     //TODO: Inject dlls
+    inject_dll(gameHandle, cobaltPath);
+
     WaitForSingleObject(gameHandle, INFINITE);
 
     // cleanup
