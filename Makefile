@@ -1,2 +1,7 @@
+CC = x86_64-w64-mingw32-gcc
+SRC = src/main.c src/utils.c
+OUT = bin/yafl.exe
+OBJ = build/yafl.o
+
 build:
-	x86_64-w64-mingw32-gcc -std=c99 -o main src/main.c src/utils.c -Wall -Werror
+	$(CC) -std=c99 -o $(OUT) $(SRC) -Wall -Werror
