@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <Windows.h>
+#include <windows.h>
 #include <stdbool.h>
 #include "utils.h"
 
