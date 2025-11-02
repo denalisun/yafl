@@ -18,6 +18,7 @@ int main(int argc, char **argv) {
     char **allTweaks;
     size_t allTweaksSize = 0;
     bool bIsServer = false;
+    char* redirectPath = NULL;
     for (int i = 0; i < argc; i++) {
         if (strncmp("--play", argv[i], 7) == 0 || strncmp("-p", argv[i], 3) == 0) {
             playPath = argv[i+1];
@@ -27,6 +28,8 @@ int main(int argc, char **argv) {
             allTweaks[allTweaksSize-1] = argv[i+1];
         } else if (strncmp("--server", argv[i], 9) == 0 || strncmp("-s", argv[i], 3) == 0) {
             bIsServer = true;
+        } else if (strncmp("--redirect", argv[i], 11) == 0) {
+            redirectPath = argv[i+1];
         }
     }
     
@@ -36,6 +39,14 @@ int main(int argc, char **argv) {
         printf("Error: Reboot DLL not found!");
         return 1;
     }
+
+    // This is insanely unsafe but still
+    FILE* redirectUrlFile;
+    redirectUrlFile = fopen(combine_path(getenv("TEMP"), ".yaflredirect"), "w");
+    if (redirectUrlFile != NULL && redirectPath != NULL) {
+        fwrite(redirectPath, sizeof(char), strlen(redirectPath), redirectUrlFile);
+    }
+    fclose(redirectUrlFile);
 
     char* fortniteBinariesPath = combine_path(playPath, "FortniteGame\\Binaries\\Win64");
     char* fortniteLauncherPath = combine_path(fortniteBinariesPath, "FortniteLauncher.exe");
@@ -53,8 +64,10 @@ int main(int argc, char **argv) {
 
     printf("Launched Fortnite!\nDO NOT CLOSE THIS, YOU MAY GET ERRORS!\n");
 
-    //TODO: Inject dlls
     inject_dll(gameHandle, cobaltPath);
+    if (bIsServer) {
+        inject_dll(gameHandle, serverPath);
+    }
 
     WaitForSingleObject(gameHandle, INFINITE);
 
