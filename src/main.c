@@ -8,9 +8,9 @@
 int main(int argc, char **argv) {
     // First I wanna check for cobalt
     char cobaltPath[MAX_PATH];
-    GetFullPathNameA("./assets/Cobalt.dll", MAX_PATH, cobaltPath, NULL);
+    GetFullPathNameA("./redirector.dll", MAX_PATH, cobaltPath, NULL);
     if (!file_exists(cobaltPath)) {
-        printf("Error: Cobalt DLL not found!");
+        printf("Error: Redirector DLL not found!");
         return 1;
     }
     
@@ -34,9 +34,9 @@ int main(int argc, char **argv) {
     }
     
     char serverPath[MAX_PATH];
-    GetFullPathNameA("./assets/Reboot.dll", MAX_PATH, serverPath, NULL);
+    GetFullPathNameA("./server.dll", MAX_PATH, serverPath, NULL);
     if (bIsServer && !file_exists(serverPath)) {
-        printf("Error: Reboot DLL not found!");
+        printf("Error: Server DLL not found!");
         return 1;
     }
 
