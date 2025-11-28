@@ -1,4 +1,7 @@
+mod utils;
+
 use std::path::PathBuf;
+use crate::utils::*;
 
 //TODO:
 // -- Implement profiles
@@ -49,16 +52,8 @@ fn main() {
     }
 
     if play_path == None {
-        println!("Error: game path not specified!");
-        panic!();
-    }
-    println!("play_path: {}", play_path.unwrap());
-    println!("is_server: {}", is_server);
-    if redirect_path != None {
-        println!("redirect_path: {}", redirect_path.unwrap());
+        panic!("Game path not specified!");
     }
 
-    for (i, tweak) in tweaks.into_iter().enumerate() {
-        println!("Tweak {}: {}", i, tweak);
-    }
+
 }
