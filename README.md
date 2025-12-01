@@ -2,8 +2,8 @@
 YAFL is an intuitive launcher with mod support in mind
 
 ## Features
-- Mod Support
+- Mod Support (called "Tweaks") *(coming soon)*
     - DLLs
     - Paks (as Zip files)
     - Patches (w/ [yafl-patcher](https://github.com/denalisun/yafl-patcher))
-- Profiles
+- Profiling
