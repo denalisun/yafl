@@ -1,11 +1,27 @@
 mod utils;
+mod data;
 
-use std::{os::windows::process::CommandExt, path::{Path, PathBuf}, process::Command};
-
+use std::{fs, os::windows::process::CommandExt, path::{Path, PathBuf}, process::Command};
 use windows::Win32::System::Threading::{CREATE_NEW_PROCESS_GROUP, DETACHED_PROCESS};
+use crate::data::YAFLProfile;
 
-//TODO:
-// -- Implement profiles
+fn print_usage() {
+    println!("Usage: yafl [options]\n\nOptions:");
+
+    println!("\t--play <path> | -p <path>         Specify build to launch");
+    println!("\t--tweak <path> | -t <path>        Specify a tweak to launch with, can be used multiple times");
+    println!("\t--server | -s                     Enable server-mode, requires a server dll\n");
+    println!("\t--redirect <url>                  Specify a URL to redirect Epic requests to");
+    println!("\t--save                            Saves argument config to out_profile.json");
+    println!("\t--from-profile <path>             Ignores all config, sourced from path");
+}
+
+fn safe_exit(s: Option<&str>) {
+    if s.is_some() {
+        println!("{}", s.unwrap());
+    }
+    std::process::exit(0);
+}
 
 fn main() {
     let redirector_dll_path = PathBuf::from("redirector.dll");
@@ -13,33 +29,37 @@ fn main() {
     match redirector_dll_exists {
         Ok(_exists) => {
             if _exists == false {
-                panic!("Redirector DLL not found!");
+                safe_exit(Some("ERROR: Redirector DLL not found!"));
+                print_usage();
             }
         },
 
         Err(e) => {
-            println!("Error! {}", e);
-            panic!();
+            panic!("ERROR: {}", e);
         }
     }
-
-    let mut play_path: Option<&str> = None;
-    let mut tweaks: Vec<&str> = Vec::new();
-    let mut is_server: bool = false;
-    let mut redirect_path: Option<&str> = None;
-
-    let args: Vec<String> = std::env::args().collect();
-    for (i, arg) in args.clone().into_iter().enumerate() {
-        if i == 0 {
-            continue;
-        }
     
+    let args: Vec<String> = std::env::args().collect();
+
+    let mut play_path: Option<String> = None;
+    let mut tweaks: Vec<String> = Vec::new();
+    let mut is_server: bool = false;
+    let mut redirect_path: Option<String> = None;
+    let mut should_save: bool = false;
+    let mut profile_path: Option<String> = None;
+
+    if args.contains(&"--help".to_string()) {
+        print_usage();
+        std::process::exit(0);
+    }
+
+    for (i, arg) in args.clone().into_iter().enumerate() {    
         if arg == "-p" || arg == "--play" {
-            play_path = Some(args.get(i+1).unwrap().as_str());
+            play_path = Some((*args.get(i+1).unwrap().clone()).to_string());
         }
 
         if arg == "-t" || arg == "--tweak" {
-            tweaks.push(args.get(i+1).unwrap().as_str());
+            tweaks.push((*args.get(i+1).unwrap().clone()).to_string());
         }
 
         if arg == "-s" || arg == "--server" {
@@ -47,12 +67,44 @@ fn main() {
         }
 
         if arg == "--redirect" {
-            redirect_path = Some(args.get(i+1).unwrap().as_str());
+            redirect_path = Some(args.get(i+1).unwrap().to_string());
+        }
+
+        if arg == "--save" {
+            should_save = true;
+        }
+
+        if arg == "--from-profile" {
+            profile_path = Some(args.get(i+1).unwrap().to_string());
         }
     }
 
+    if profile_path.is_some() {
+        if should_save {
+            print_usage();
+            safe_exit(Some("Cannot use --from-profile and --save simultaneously!"));
+        }
+
+        let contents = match fs::read_to_string(profile_path.unwrap()) {
+            Ok(c) => {
+                c
+            },
+            Err(_) => {
+                panic!("ERROR: Failed to read from profile!");
+            },
+        };
+        
+        let deserialized: YAFLProfile = serde_json::from_str(&contents).unwrap();
+
+        play_path = Some(deserialized.play_path);
+        redirect_path = deserialized.redirect_path;
+        is_server = deserialized.is_server;
+        tweaks = deserialized.tweaks;
+    }
+
     if play_path == None {
-        panic!("Game path not specified!");
+        print_usage();
+        safe_exit(None);
     }
 
     let server_dll = PathBuf::from("server.dll");
@@ -61,31 +113,51 @@ fn main() {
         match server_dll_exists {
             Ok(_exists) => {
                 if _exists == false {
-                    panic!("Server DLL not found!");
+                    print_usage();
+                    safe_exit(Some("ERROR: Server DLL not found!"));
                 }
             },
 
             Err(e) => {
-                println!("Error! {}", e);
-                panic!();
+                panic!("ERROR: {}", e.to_string());
             }
         }
     }
 
     if redirect_path.is_some() {
         let redirect_path_buf = PathBuf::from((env!("LOCALAPPDATA").to_string() + "\\.yaflredirect").as_str());
-        let res = std::fs::write(redirect_path_buf, redirect_path.unwrap());
+        let res = std::fs::write(redirect_path_buf, redirect_path.clone().unwrap());
         match res {
-            Ok(_) => {
-
-            },
+            Ok(_) => {},
             Err(_) => {
-
+                panic!("Failed to write redirect path!");
             },
         }
     }
 
-    let fortnite_binaries = Path::new(play_path.unwrap()).join("FortniteGame\\Binaries\\Win64");
+    if should_save {
+        let profile: YAFLProfile = YAFLProfile::new(
+            play_path.unwrap(),
+            is_server,
+            redirect_path.clone(),
+            tweaks
+        );
+        
+        let serialized = serde_json::to_string(&profile).unwrap();
+
+        match std::fs::write("out_profile.json", serialized) {
+            Ok(_) => {
+                println!("Successfully wrote to out_profile.json! It is HIGHLY recommended you rename this file!");
+            },
+            Err(_) => {
+                panic!("ERROR: Failed to write to out_profile.json!");
+            },
+        }
+
+        std::process::exit(0);
+    }
+
+    let fortnite_binaries = Path::new(play_path.unwrap().as_str()).join("FortniteGame\\Binaries\\Win64");
     let fortnite_launcher_path = fortnite_binaries.clone().as_path().join("FortniteLauncher.exe");
     let fortnite_eac_path = fortnite_binaries.clone().as_path().join("FortniteClient-Win64-Shipping_EAC.exe");
     let fortnite_client_path = fortnite_binaries.clone().as_path().join("FortniteClient-Win64-Shipping.exe");
@@ -113,7 +185,7 @@ fn main() {
             },
             Err(_) => {
                 let _ = launcher_process.kill();
-                panic!("Failed to start FortniteClient-Win64-Shipping_EAC!");
+                panic!("ERROR: Failed to start FortniteClient-Win64-Shipping_EAC!");
             }
         };
 
@@ -128,7 +200,7 @@ fn main() {
             Err(_) => {
                 let _ = launcher_process.kill();
                 let _ = eac_process.kill();
-                panic!("Failed to launch FortniteClient-Win64-Shipping!");
+                panic!("ERROR: Failed to launch FortniteClient-Win64-Shipping!");
             }
         };
 
