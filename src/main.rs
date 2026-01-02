@@ -1,7 +1,7 @@
 mod utils;
 mod data;
 
-use std::{fs, os::windows::process::CommandExt, path::{Path, PathBuf}, process::Command};
+use std::{fs, os::windows::process::CommandExt, path::{Path, PathBuf}, process::{Child, Command}};
 use windows::Win32::System::Threading::{CREATE_NEW_PROCESS_GROUP, DETACHED_PROCESS};
 use crate::data::YAFLProfile;
 
@@ -125,7 +125,7 @@ fn main() {
     }
 
     if redirect_path.is_some() {
-        let redirect_path_buf = PathBuf::from((env!("LOCALAPPDATA").to_string() + "\\.yaflredirect").as_str());
+        let redirect_path_buf = PathBuf::from((std::env::var("LOCALAPPDATA").unwrap().to_string() + "\\.yaflredirect").as_str());
         let res = std::fs::write(redirect_path_buf, redirect_path.clone().unwrap());
         match res {
             Ok(_) => {},
@@ -166,26 +166,31 @@ fn main() {
 
     let launch_args: Vec<&str> = "-epicapp=Fortnite -epicenv=Prod -epiclocale=en-us -epicportal -skippatchcheck -NOSSLPINNING -nobe -fromfl=eac -fltoken=3db3ba5dcbd2e16703f3978d -caldera=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYmU5ZGE1YzJmYmVhNDQwN2IyZjQwZWJhYWQ4NTlhZDQiLCJnZW5lcmF0ZWQiOjE2Mzg3MTcyNzgsImNhbGRlcmFHdWlkIjoiMzgxMGI4NjMtMmE2NS00NDU3LTliNTgtNGRhYjNiNDgyYTg2IiwiYWNQcm92aWRlciI6IkVhc3lBbnRpQ2hlYXQiLCJub3RlcyI6IiIsImZhbGxiYWNrIjpmYWxzZX0.VAWQB67RTxhiWOxx7DBjnzDnXyyEnX7OljJm-j2d88G_WgwQ9wrE6lwMEHZHjBd1ISJdUO1UVUqkfLdU5nofBQ".split_whitespace().collect();
 
-    let mut launcher_process = Command::new(fortnite_launcher_path)
-        .current_dir(&fortnite_binaries)
-        .creation_flags(creation_flags)
-        .args(&launch_args)
-        .spawn()
-        .expect("Failed to launch FortniteLauncher!");
-    utils::nt_suspend_process(launcher_process.id());
-
-    let mut eac_process = match Command::new(fortnite_eac_path.to_str().unwrap())
+    let launcher_process: Option<Child> = match Command::new(fortnite_launcher_path.to_str().unwrap())
         .current_dir(&fortnite_binaries)
         .creation_flags(creation_flags)
         .args(&launch_args)
         .spawn() {
-            Ok(result) => {
-                utils::nt_suspend_process(result.id());
-                result
+            Ok(c) => {
+                utils::nt_suspend_process(c.id());
+                Some(c)
             },
             Err(_) => {
-                let _ = launcher_process.kill();
-                panic!("ERROR: Failed to start FortniteClient-Win64-Shipping_EAC!");
+                None
+            }
+        };
+
+    let eac_process: Option<Child> = match Command::new(fortnite_eac_path.to_str().unwrap())
+        .current_dir(&fortnite_binaries)
+        .creation_flags(creation_flags)
+        .args(&launch_args)
+        .spawn() {
+            Ok(c) => {
+                utils::nt_suspend_process(c.id());
+                Some(c)
+            },
+            Err(_) => {
+                None
             }
         };
 
@@ -198,8 +203,12 @@ fn main() {
                 res
             },
             Err(_) => {
-                let _ = launcher_process.kill();
-                let _ = eac_process.kill();
+                if launcher_process.is_some() {
+                    let _ = launcher_process.unwrap().kill();
+                }
+                if eac_process.is_some() {
+                    let _ = eac_process.unwrap().kill();
+                }
                 panic!("ERROR: Failed to launch FortniteClient-Win64-Shipping!");
             }
         };
@@ -210,6 +219,10 @@ fn main() {
 
     let _ = fortnite_process.wait();
 
-    let _ = launcher_process.kill();
-    let _ = eac_process.kill();
+    if launcher_process.is_some() {
+        let _ = launcher_process.unwrap().kill();
+    }
+    if eac_process.is_some() {
+        let _ = eac_process.unwrap().kill();
+    }
 }
