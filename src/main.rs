@@ -202,14 +202,14 @@ fn main() {
             Ok(res) => {
                 res
             },
-            Err(_) => {
+            Err(e) => {
                 if launcher_process.is_some() {
                     let _ = launcher_process.unwrap().kill();
                 }
                 if eac_process.is_some() {
                     let _ = eac_process.unwrap().kill();
                 }
-                panic!("ERROR: Failed to launch FortniteClient-Win64-Shipping!");
+                panic!("ERROR: Failed to launch FortniteClient-Win64-Shipping >> {}", e);
             }
         };
 
